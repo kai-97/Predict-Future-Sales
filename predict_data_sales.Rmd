@@ -1,0 +1,106 @@
+---
+title: "Predict Future Sales"
+output:html_document
+---
+By: Kaivan Shah.
+
+Trying to find the predicted values of next month's sale using sales data of previous months.
+
+```{r}
+library(lubridate)
+
+#read data set
+df<-read.csv("./sales_train_v2.csv")
+df
+
+#extracting the months only
+om<-month(as.POSIXlt(df$date, format="%d.%m.%Y"))
+
+head(cbind(df, om))
+
+#writing the new column "om" to the csv
+write.csv(cbind(df, om), file="./new_data.csv", row.names = FALSE)
+```
+
+
+```{r}
+#new data frame after inserting "only months" (om) column
+df<-read.csv("./new_data.csv")
+df
+
+library(sqldf)
+
+#counting for items sold in each month
+#df2<-count(df, c("item_id", "om"))
+#df2
+df2<-sqldf("select item_id, om from df where om = (select om from df group by item_id)")
+df2
+
+#grouping according to item_id and thus counting number of distinct months
+df2<-sqldf("select item_id, om from df group by item_id")
+df2
+```
+
+```{r}
+
+#Extracting unique item_id from the data set
+dis<-sqldf('select distinct(item_id) from df')
+dis
+
+#binding the extracted id's with other attributes
+pre_res<-cbind(pre_res, dis)
+pre_res
+```
+
+```{r}
+
+#calculating average value of item considering previous months
+val<-(pre_res$fre/pre_res$cnt)
+val
+
+#binding the item_id and the calculated value
+res<- cbind(res1, val)
+res
+
+#importing the test data
+test2<-read.csv("./test.csv")
+test<-sqldf("select distinct(item_id) from test2")
+test
+
+sqldf("select dsiid, val from res")
+
+#obtaining values for items in test data set, from the train dataset
+res_fin<-sqldf("select dsiid, val from res where dsiid = (select item_id from test)")
+res_fin<-res
+
+#writing to the final csv file
+write.csv(res_fin, file = "final_res.csv", row.names = FALSE)
+```
+
+```{r}
+#plot of item_id vs val
+plot(res_fin$dsiid, res_fin$val, ylim = c(1,100))
+#Majority lies in the (0,20) range
+
+```
+
+```{r}
+library(plotly)
+
+#plot of number of months vs item_id
+plot(df2$om, df2$item_id)
+```
+```{r}
+#plot for item count per day vs date
+p=ggplot(data, aes(x=df$date, y=df$item_cnt_day)) +
+  geom_line() +
+  xlab("")
+p
+```
+```{r}
+#plot of date vs item_price
+plot(df$date, df$item_price, ylim=c(200,1500),type = "l", pch = 19, col = "red", xlab = "Date")
+# Add a second line
+#lines(df$date, df$item_cnt_day*500, pch = 18, col = "blue", type = "b", lty = 2)
+```
+
